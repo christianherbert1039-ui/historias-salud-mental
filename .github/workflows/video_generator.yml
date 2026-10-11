@@ -1,45 +1,50 @@
-name: Generador de Videos Salud Mental
-
+name: Generar video
 on:
   workflow_dispatch:
-
+  push:
+    paths:
+      - "guion.json"
 jobs:
-  build-and-send:
+  video:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
     steps:
-      - name: Descargar código del repositorio
-        uses: actions/checkout@v4
-
-      - name: Configurar Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-
-      - name: Instalar dependencias
+          python-version: "3.11"
+      - name: Instalar
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          pip install requests
-
-      - name: Generar contenido e imágenes con Cloudflare AI
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          pip install piper-tts requests
+      - name: Descargar voz
+        run: |
+          mkdir -p voices
+          B=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_ES/mls_10246/low
+          curl -L --fail -o voices/es_ES-mls_10246-low.onnx $B/es_ES-mls_10246-low.onnx
+          curl -L --fail -o voices/es_ES-mls_10246-low.onnx.json $B/es_ES-mls_10246-low.onnx.json
+      - name: Generar video
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: python generar.py
+      - name: Enviar a Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          echo "Generando imágenes y script con Cloudflare Workers AI..."
-
-      - name: Generar audio con Piper TTS
+          curl --fail -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo" \
+            -F chat_id="${TELEGRAM_CHAT_ID}" \
+            -F video=@salida/final.mp4 \
+            -F "caption=<salida/caption.txt" \
+            -F supports_streaming=true
+      - name: Aviso de fallo
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          echo "Generando voz en off..."
-
-      - name: Ensamblar Video
-        run: |
-          echo "Ensamblando video en formato 9:16..."
-          touch output_video.mp4
-
-      - name: Enviar mensaje de prueba a Telegram
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "text=🎬 ¡Hola Christian! El flujo de GitHub Actions se ha ejecutado correctamente y la conexión con Telegram funciona a la perfección."
+          curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="Fallo al generar el video. Revisa la pestaña Actions en GitHub."
