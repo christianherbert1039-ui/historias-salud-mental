@@ -1,16 +1,18 @@
-import json, os, base64, subprocess, textwrap, time
+
+import json, os, sys, base64, subprocess, textwrap, time
 import requests
 
 ACC = os.environ["CF_ACCOUNT_ID"]
 TOK = os.environ["CF_API_TOKEN"]
+PRUEBA_VOZ = True          # True = sin imagenes reales (solo probar la voz). Luego cambiar a False
+VOZ_KOKORO = "ef_dora"     # prueba tambien "em_alex" o "em_santa"
 FUENTE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 W, H, FPS = 1080, 1920, 30
-VELOCIDAD = 1.1
 RELLENO = 0.25
-VOZ_PRINCIPAL = "voices/es_ES-davefx-medium.onnx"
-VOZ_RESPALDO = "voices/es_ES-mls_10246-low.onnx"
-URL_VOZ = ("https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-           "es/es_ES/davefx/medium/es_ES-davefx-medium.onnx")
+URL_KOKORO = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/"
+URL_PIPER = ("https://huggingface.co/rhasspy/piper-voices/resolve/main/"
+             "es/es_ES/davefx/medium/es_ES-davefx-medium.onnx")
+PIPER_VOZ = "voices/es_ES-davefx-medium.onnx"
 ESTILO = ("warm colorful 2D animated film illustration, soft golden light, "
           "expressive faces, everyday setting, vertical composition, no text, no letters")
 ENCUADRES = ["wide establishing shot",
@@ -20,7 +22,10 @@ LIMPIA = ("silenceremove=start_periods=1:start_silence=0.03:start_threshold=-45d
           "areverse,"
           "silenceremove=start_periods=1:start_silence=0.03:start_threshold=-45dB,"
           "areverse,"
-          "atempo=%s,loudnorm=I=-16:TP=-1.5:LRA=7" % VELOCIDAD)
+          "loudnorm=I=-16:TP=-1.5:LRA=7")
+
+KOKORO = None
+sf = None
 
 
 def run(cmd, **kw):
@@ -28,27 +33,46 @@ def run(cmd, **kw):
 
 
 def descargar(url, ruta):
-    r = requests.get(url, stream=True, timeout=300)
+    r = requests.get(url, stream=True, timeout=600)
     r.raise_for_status()
     with open(ruta, "wb") as f:
         for trozo in r.iter_content(1 << 20):
             f.write(trozo)
 
 
-def preparar_voz():
+def iniciar_kokoro():
+    global sf
     try:
-        os.makedirs("voices", exist_ok=True)
-        for ext in ("", ".json"):
-            if not os.path.exists(VOZ_PRINCIPAL + ext):
-                descargar(URL_VOZ + ext, VOZ_PRINCIPAL + ext)
-        print("Voz: es_MX claude high")
-        return VOZ_PRINCIPAL
+        run([sys.executable, "-m", "pip", "install", "-q", "kokoro-onnx", "soundfile"])
+        import soundfile
+        sf = soundfile
+        os.makedirs("kokoro", exist_ok=True)
+        for nombre in ("kokoro-v1.0.onnx", "voices-v1.0.bin"):
+            ruta = "kokoro/" + nombre
+            if not os.path.exists(ruta):
+                descargar(URL_KOKORO + nombre, ruta)
+        from kokoro_onnx import Kokoro
+        k = Kokoro("kokoro/kokoro-v1.0.onnx", "kokoro/voices-v1.0.bin")
+        print("Voz: Kokoro", VOZ_KOKORO)
+        return k
     except Exception as e:
-        print("No se pudo descargar la voz alta, uso la anterior:", e)
-        return VOZ_RESPALDO
+        print("Kokoro no disponible, uso Piper:", e)
+        return None
+
+
+def piper_voz():
+    os.makedirs("voices", exist_ok=True)
+    for ext in ("", ".json"):
+        if not os.path.exists(PIPER_VOZ + ext):
+            descargar(URL_PIPER + ext, PIPER_VOZ + ext)
+    return PIPER_VOZ
 
 
 def imagen(prompt, ruta):
+    if PRUEBA_VOZ:
+        run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=0x335577:s=720x1280",
+             "-frames:v", "1", ruta])
+        return
     url = BASE + "@cf/black-forest-labs/flux-1-schnell"
     for intento in range(4):
         r = requests.post(url, headers={"Authorization": "Bearer " + TOK},
@@ -64,8 +88,16 @@ def imagen(prompt, ruta):
     raise RuntimeError("No se pudo generar la imagen")
 
 
-def audio(voz, texto, ruta_final, ruta_cruda):
-    run(["piper", "--model", voz, "--output_file", ruta_cruda],
+def audio(texto, ruta_final, ruta_cruda):
+    if KOKORO is not None:
+        try:
+            muestras, tasa = KOKORO.create(texto, voice=VOZ_KOKORO, speed=1.0, lang="es")
+            sf.write(ruta_cruda, muestras, tasa)
+            run(["ffmpeg", "-y", "-i", ruta_cruda, "-af", LIMPIA, ruta_final])
+            return
+        except Exception as e:
+            print("Fallo Kokoro en esta frase, uso Piper:", e)
+    run(["piper", "--model", piper_voz(), "--output_file", ruta_cruda],
         input=texto.encode("utf-8"))
     run(["ffmpeg", "-y", "-i", ruta_cruda, "-af", LIMPIA, ruta_final])
 
@@ -131,7 +163,8 @@ def clip(i, texto, imgs, wav, salida):
 
 
 def main():
-    voz = preparar_voz()
+    global KOKORO
+    KOKORO = iniciar_kokoro()
     g = json.load(open("guion.json", encoding="utf-8"))
     os.makedirs("trabajo", exist_ok=True)
     os.makedirs("salida", exist_ok=True)
@@ -148,7 +181,7 @@ def main():
         cruda = "trabajo/voz_cruda_%d.wav" % i
         wav = "trabajo/voz_%d.wav" % i
         out = "trabajo/clip_%d.mp4" % i
-        audio(voz, e["narracion"], wav, cruda)
+        audio(e["narracion"], wav, cruda)
         duracion_total += clip(i, e["narracion"], imgs, wav, out)
         clips.append(out)
         print("Escena", i, "lista")
@@ -163,4 +196,3 @@ def main():
 
 
 main()
-
