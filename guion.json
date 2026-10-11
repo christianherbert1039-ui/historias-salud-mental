@@ -1,0 +1,39 @@
+{
+  "titulo": "Mi papá dejó de reír... y lo que descubrimos después",
+  "descripcion": "Historia de ficción sobre depresión y familia. Si te sientes así, habla con un profesional de la salud. Voz e imágenes generadas con IA. Voz: Piper, es_ES mls_10246 (CC BY 4.0).",
+  "hashtags": "#saludmental #depresion #familia #historia",
+  "personajes": {
+    "Mateo": "Mateo, a 45-year-old Spanish carpenter, short dark hair with grey, trimmed beard, brown eyes, green work shirt.",
+    "Lucia": "Lucia, a 43-year-old woman, shoulder-length chestnut hair, warm smile, yellow cardigan.",
+    "Nora": "Nora, a 15-year-old girl, long black hair in a ponytail, blue hoodie."
+  },
+  "escenas": [
+    {"narracion": "Mateo hacía reír a todos. Hasta que un día, sin avisar, dejó de hacerlo.",
+     "personajes": ["Mateo", "Nora"],
+     "imagen": "Mateo laughing in his bright wood workshop with his daughter, warm light."},
+    {"narracion": "En el taller, la guitarra se llenó de polvo y los muebles quedaron a medias. Decía que solo estaba cansado.",
+     "personajes": ["Mateo"],
+     "imagen": "Mateo sitting still in the workshop, dusty guitar on the wall, unfinished furniture, colors a bit muted."},
+    {"narracion": "Nora dejó de invitar amigas a casa. Lucía fingía que todo iba bien, y cada noche se sentía más sola.",
+     "personajes": ["Lucia", "Nora"],
+     "imagen": "Family dinner table, Lucia forcing a smile, Nora looking at her phone, Mateo's seat quiet."},
+    {"narracion": "Una tarde, Nora preguntó: papá, ¿te he hecho algo? Mateo se quedó callado. Y entendió que no era solo cansancio.",
+     "personajes": ["Mateo", "Nora"],
+     "imagen": "Hallway, Nora at the doorway looking worried, Mateo with his back turned, then thoughtful."},
+    {"narracion": "Pidió ayuda. Su médico le explicó que era depresión: una enfermedad, no una debilidad. Empezó terapia y un tratamiento pautado por profesionales.",
+     "personajes": ["Mateo"],
+     "imagen": "Warm doctor's office, kind female doctor, Mateo listening and nodding, sunlight through the window."},
+    {"narracion": "No fue rápido. Hubo semanas buenas y otras difíciles, y el tratamiento se fue ajustando con su equipo.",
+     "personajes": ["Mateo"],
+     "imagen": "Wall calendar with crossed days and small happy and tired faces, Mateo walking in the park."},
+    {"narracion": "Lucía también aprendió a pedir apoyo y a descansar sin culpa. Cuidar a alguien también es cuidarse.",
+     "personajes": ["Lucia"],
+     "imagen": "Lucia relaxing in a sunny park with a friend, breathing calmly, vivid colors."},
+    {"narracion": "Meses después, Mateo volvió al taller. No curado de un día para otro, pero acompañado.",
+     "personajes": ["Mateo", "Nora"],
+     "imagen": "Golden-hour workshop, Mateo playing guitar, Nora beside him smiling."},
+    {"narracion": "Una enfermedad puede cambiar la vida, pero no te define. Si algo de esto te suena, hablar con un profesional es un buen primer paso.",
+     "personajes": ["Mateo", "Lucia", "Nora"],
+     "imagen": "The whole family at the garden table at sunset, warm and hopeful."}
+  ]
+}
