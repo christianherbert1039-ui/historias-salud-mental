@@ -6,6 +6,8 @@ TOK = os.environ["CF_API_TOKEN"]
 VOZ = "voices/es_ES-mls_10246-low.onnx"
 FUENTE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 W, H, FPS = 1080, 1920, 30
+VELOCIDAD = 1.08
+VOLUMEN = 2.5
 ESTILO = ("warm colorful 2D animated film illustration, soft golden light, "
           "expressive faces, everyday setting, vertical composition, no text, no letters")
 
@@ -44,21 +46,27 @@ def duracion(ruta):
 
 
 def clip(i, texto, img, wav, salida):
-    total = duracion(wav) + 0.6
+    total = duracion(wav) / VELOCIDAD + 0.6
     frames = int(total * FPS) + 1
     sub = "trabajo/sub_%d.txt" % i
     with open(sub, "w", encoding="utf-8") as f:
         f.write(textwrap.fill(texto, 28))
-    if i % 2 == 1:
-        z = "min(zoom+0.0006,1.2)"
+    modo = i % 3
+    x = "iw/2-(iw/zoom/2)"
+    if modo == 1:
+        z = "min(zoom+0.0012,1.35)"
+    elif modo == 2:
+        z = "if(eq(on,1),1.35,max(zoom-0.0012,1.0))"
     else:
-        z = "if(eq(on,1),1.2,max(zoom-0.0006,1.0))"
+        z = "1.25"
+        x = "(iw-iw/zoom)*on/%d" % frames
     vf = ("crop=ih*9/16:ih,scale=1620:2880,"
-          "zoompan=z='%s':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=%d:s=%dx%d:fps=%d,"
+          "zoompan=z='%s':x='%s':y='ih/2-(ih/zoom/2)':d=%d:s=%dx%d:fps=%d,"
           "drawtext=fontfile=%s:textfile=%s:expansion=none:fontsize=50:"
           "fontcolor=white:borderw=5:bordercolor=black:x=(w-text_w)/2:y=h*0.62:"
-          "line_spacing=12,format=yuv420p") % (z, frames, W, H, FPS, FUENTE, sub)
-    run(["ffmpeg", "-y", "-i", img, "-i", wav, "-vf", vf, "-af", "apad",
+          "line_spacing=12,format=yuv420p") % (z, x, frames, W, H, FPS, FUENTE, sub)
+    af = "atempo=%s,volume=%s,alimiter=limit=0.9,apad" % (VELOCIDAD, VOLUMEN)
+    run(["ffmpeg", "-y", "-i", img, "-i", wav, "-vf", vf, "-af", af,
          "-t", "%.2f" % total, "-r", str(FPS), "-c:v", "libx264",
          "-preset", "veryfast", "-crf", "26", "-c:a", "aac",
          "-ar", "44100", "-ac", "2", salida])
