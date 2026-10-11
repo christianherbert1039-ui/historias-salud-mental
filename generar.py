@@ -7,10 +7,10 @@ FUENTE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 W, H, FPS = 1080, 1920, 30
 VELOCIDAD = 1.1
 RELLENO = 0.25
-VOZ_PRINCIPAL = "voices/es_MX-claude-high.onnx"
+VOZ_PRINCIPAL = "voices/es_ES-davefx-medium.onnx"
 VOZ_RESPALDO = "voices/es_ES-mls_10246-low.onnx"
 URL_VOZ = ("https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-           "es/es_MX/claude/high/es_MX-claude-high.onnx")
+           "es/es_ES/davefx/medium/es_ES-davefx-medium.onnx")
 ESTILO = ("warm colorful 2D animated film illustration, soft golden light, "
           "expressive faces, everyday setting, vertical composition, no text, no letters")
 ENCUADRES = ["wide establishing shot",
