@@ -36,10 +36,10 @@ jobs:
       - name: Ensamblar Video
         run: |
           echo "Ensamblando video en formato 9:16..."
+          touch output_video.mp4
 
-      - name: Enviar video a Telegram
+      - name: Enviar mensaje de prueba a Telegram
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
-            -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -F video="@output_video.mp4" \
-            -F caption="🎬 ¡Tu nuevo video de Salud Mental está listo!"
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "text=🎬 ¡Hola Christian! El flujo de GitHub Actions se ha ejecutado correctamente y la conexión con Telegram funciona a la perfección."
