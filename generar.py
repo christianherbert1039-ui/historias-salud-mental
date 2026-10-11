@@ -1,3 +1,4 @@
+
 import json, os, base64, subprocess, textwrap, time
 import requests
 
@@ -6,10 +7,17 @@ TOK = os.environ["CF_API_TOKEN"]
 VOZ = "voices/es_ES-mls_10246-low.onnx"
 FUENTE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 W, H, FPS = 1080, 1920, 30
-VELOCIDAD = 1.08
-VOLUMEN = 2.5
+VELOCIDAD = 1.15
+RELLENO = 0.2
 ESTILO = ("warm colorful 2D animated film illustration, soft golden light, "
           "expressive faces, everyday setting, vertical composition, no text, no letters")
+
+LIMPIA = ("silenceremove=start_periods=1:start_silence=0.03:start_threshold=-45dB:"
+          "stop_periods=-1:stop_duration=0.3:stop_silence=0.15:stop_threshold=-45dB,"
+          "areverse,"
+          "silenceremove=start_periods=1:start_silence=0.03:start_threshold=-45dB,"
+          "areverse,"
+          "atempo=%s,dynaudnorm=f=150:g=15,volume=1.5,alimiter=limit=0.9" % VELOCIDAD)
 
 
 def run(cmd, **kw):
@@ -33,8 +41,9 @@ def imagen(prompt, ruta):
     raise RuntimeError("No se pudo generar la imagen")
 
 
-def audio(texto, ruta):
-    run(["piper", "--model", VOZ, "--output_file", ruta], input=texto.encode("utf-8"))
+def audio(texto, ruta_final, ruta_cruda):
+    run(["piper", "--model", VOZ, "--output_file", ruta_cruda], input=texto.encode("utf-8"))
+    run(["ffmpeg", "-y", "-i", ruta_cruda, "-af", LIMPIA, ruta_final])
 
 
 def duracion(ruta):
@@ -46,7 +55,7 @@ def duracion(ruta):
 
 
 def clip(i, texto, img, wav, salida):
-    total = duracion(wav) / VELOCIDAD + 0.6
+    total = duracion(wav) + RELLENO
     frames = int(total * FPS) + 1
     sub = "trabajo/sub_%d.txt" % i
     with open(sub, "w", encoding="utf-8") as f:
@@ -65,8 +74,7 @@ def clip(i, texto, img, wav, salida):
           "drawtext=fontfile=%s:textfile=%s:expansion=none:fontsize=50:"
           "fontcolor=white:borderw=5:bordercolor=black:x=(w-text_w)/2:y=h*0.62:"
           "line_spacing=12,format=yuv420p") % (z, x, frames, W, H, FPS, FUENTE, sub)
-    af = "atempo=%s,volume=%s,alimiter=limit=0.9,apad" % (VELOCIDAD, VOLUMEN)
-    run(["ffmpeg", "-y", "-i", img, "-i", wav, "-vf", vf, "-af", af,
+    run(["ffmpeg", "-y", "-i", img, "-i", wav, "-vf", vf, "-af", "apad",
          "-t", "%.2f" % total, "-r", str(FPS), "-c:v", "libx264",
          "-preset", "veryfast", "-crf", "26", "-c:a", "aac",
          "-ar", "44100", "-ac", "2", salida])
@@ -83,10 +91,11 @@ def main():
         desc = " ".join(g["personajes"][n] for n in e.get("personajes", []))
         prompt = "%s. %s %s" % (ESTILO, desc, e["imagen"])
         img = "trabajo/img_%d.jpg" % i
+        cruda = "trabajo/voz_cruda_%d.wav" % i
         wav = "trabajo/voz_%d.wav" % i
         out = "trabajo/clip_%d.mp4" % i
         imagen(prompt, img)
-        audio(e["narracion"], wav)
+        audio(e["narracion"], wav, cruda)
         duracion_total += clip(i, e["narracion"], img, wav, out)
         clips.append(out)
         print("Escena", i, "lista")
@@ -94,7 +103,10 @@ def main():
         for c in clips:
             f.write("file '%s'\n" % os.path.basename(c))
     run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "trabajo/lista.txt",
-         "-c", "copy", "salida/final.mp4"])
+         "-c", "copy", "trabajo/union.mp4"])
+    run(["ffmpeg", "-y", "-i", "trabajo/union.mp4",
+         "-af", "loudnorm=I=-16:TP=-1.5:LRA=7", "-c:v", "copy",
+         "-c:a", "aac", "-ar", "44100", "-ac", "2", "salida/final.mp4"])
     with open("salida/caption.txt", "w", encoding="utf-8") as f:
         f.write(g["titulo"] + "\n\n" + g["descripcion"] + "\n\n" + g["hashtags"])
     print("Duracion total aprox: %.1f s" % duracion_total)
